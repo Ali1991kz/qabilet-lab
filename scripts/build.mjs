@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 const css=fs.readFileSync('web/style.css','utf8');
-let js=['data','app','labs'].map(name=>fs.readFileSync('web/'+name+'.js','utf8')).join('\n');
+let js=['data','app','labs','entry-profile'].map(name=>fs.readFileSync('web/'+name+'.js','utf8')).join('\n');
 js=js.replace("page=work.diagnostic?'home':'diagnostic';location.hash=page;render()", "diagStep=work.diagnostic?18:0;page=work.diagnostic?'home':'diagnostic';location.hash=page;render()");
 new Function(js);
 const html='<!doctype html><html lang="kk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#206b55"><title>QabiletLab — цифрлық зертхана және ғылыми жоба</title><meta name="description" content="Алты бағыт, қызығушылық диагностикасы, виртуалды зертхана және мұғалімнің кері байланысы."><style>'+css+'</style></head><body><div id="root"><div class="empty">QabiletLab жүктелуде…</div></div><div id="toast" class="toast" role="status" hidden></div><script>'+js+'\ninit();</script></body></html>';
