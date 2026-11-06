@@ -1,4 +1,4 @@
-const BUILD_LABEL='6 бағыт · профильдер · v3.1';
+const BUILD_LABEL='6 бағыт · профильдер · v3.2';
 let profileData={school:'',grade:'',subject:'Информатика',bio:''},profileMeta={};
 const PREVIEW_COPY={model:['3D конструкторы','Куб, шар, цилиндр қос. Өлшемін, орнын, түсін өзгертіп модель құрастыр.','Кубтардан модель'],web:['Веб-дизайн редакторы','HTML/CSS жаз. Бетіңді әр экран енінде бірден көр.','HTML + CSS'],robot:['Робот симуляторы','Командалар құрастыр. Кедергілерден өтіп, маршрутты сына.','Маршрут пен команда'],code:['Программалау тренажері','Блоктардан алгоритм құрастыр. Айнымалыны қадамдап бақыла.','Блоктар мен Python'],animation:['Анимация студиясы','Кілттік кадрлар, қозғалыс, уақыт және кадр жиілігін өзгерт.','Кадрлар мен таймлайн'],ai:['ЖИ зертханасы','Дерек нүктелерін қос. kNN арқылы жіктеп, дәлдігін тексер.','Нүктелерді жіктеу']};
 function publicHeader(){return `<header class="public-header"><a href="#welcome" class="brand"><span class="mark">✦</span><span>Qabilet<span>Lab</span></span></a><div class="oneline"><a class="btn" href="#login">Кіру</a><a class="btn primary" href="#register">Тіркелу</a></div></header>`}
