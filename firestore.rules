@@ -1,0 +1,117 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signed() { return request.auth != null; }
+    function own(uid) { return signed() && request.auth.uid == uid; }
+    function person(uid) { return get(/databases/$(database)/documents/users/$(uid)).data; }
+    function approvedTeacher(uid) {
+      return signed() && request.auth.uid == uid
+        && exists(/databases/$(database)/documents/teacherAccess/$(uid))
+        && get(/databases/$(database)/documents/teacherAccess/$(uid)).data.enabled == true
+        && person(uid).role == 'teacher';
+    }
+    function teaches(studentId) {
+      return signed() && approvedTeacher(request.auth.uid)
+        && person(studentId).role == 'student'
+        && person(studentId).teacherId == request.auth.uid;
+    }
+    function text(v, limit) { return v is string && v.size() <= limit; }
+    function validUser(d, uid) {
+      return d.keys().hasAll(['id','email','name','role','teacherId','classCode','createdAt'])
+        && d.keys().hasOnly(['id','email','name','role','teacherId','classCode','createdAt'])
+        && d.id == uid && d.email == request.auth.token.email
+        && text(d.name,80) && d.name.size() >= 2
+        && text(d.createdAt,40) && d.role in ['student','teacher'];
+    }
+    function validJoin(d) {
+      return d.classCode is string && d.classCode.size() == 12
+        && exists(/databases/$(database)/documents/classes/$(d.classCode))
+        && get(/databases/$(database)/documents/classes/$(d.classCode)).data.teacherId == d.teacherId;
+    }
+    match /teacherAccess/{uid} {
+      allow get: if own(uid);
+      allow list, write: if false;
+    }
+    match /users/{uid} {
+      allow get: if own(uid) || teaches(uid);
+      allow list: if signed() && approvedTeacher(request.auth.uid) && resource.data.teacherId == request.auth.uid;
+      allow create: if own(uid) && validUser(request.resource.data, uid)
+        && ((request.resource.data.role == 'teacher' && request.resource.data.teacherId == null && request.resource.data.classCode == null)
+          || (request.resource.data.role == 'student' && validJoin(request.resource.data)));
+      allow update: if own(uid) && validUser(request.resource.data,uid)
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.teacherId == resource.data.teacherId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (request.resource.data.classCode == resource.data.classCode
+          || (resource.data.role == 'teacher' && resource.data.classCode == null && approvedTeacher(uid)
+            && request.resource.data.classCode is string && request.resource.data.classCode.size() == 12));
+      allow delete: if false;
+    }
+    match /classes/{code} {
+      allow get: if signed();
+      allow list, delete: if false;
+      allow create: if signed() && approvedTeacher(request.auth.uid)
+        && request.resource.data.keys().hasOnly(['teacherId','teacherName','createdAt'])
+        && request.resource.data.teacherId == request.auth.uid
+        && text(request.resource.data.teacherName,80) && text(request.resource.data.createdAt,40)
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.classCode == code;
+      allow update: if signed() && approvedTeacher(request.auth.uid) && resource.data.teacherId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teacherName'])
+        && text(request.resource.data.teacherName,80);
+    }
+    function validProfile(d) {
+      return d.keys().hasAll(['data','updatedAt']) && d.keys().hasOnly(['data','updatedAt'])
+        && d.data is map && d.data.keys().hasAll(['school','grade','subject','bio'])
+        && d.data.keys().hasOnly(['school','grade','subject','bio'])
+        && text(d.data.school,120) && text(d.data.subject,80) && text(d.data.bio,1000)
+        && d.data.grade in ['','5','6','7','8','9','10','11'] && text(d.updatedAt,40);
+    }
+    match /profiles/{uid} {
+      allow get: if own(uid) || teaches(uid);
+      allow list, delete: if false;
+      allow create, update: if own(uid) && validProfile(request.resource.data)
+        && exists(/databases/$(database)/documents/users/$(uid));
+    }
+    function validWork(d) {
+      return d.keys().hasAll(['teacherId','body','revision','updatedAt'])
+        && d.keys().hasOnly(['teacherId','body','revision','updatedAt'])
+        && text(d.body,450000) && d.revision is int && d.revision > 0 && text(d.updatedAt,40);
+    }
+    match /work/{uid} {
+      allow get: if own(uid) || (signed() && approvedTeacher(request.auth.uid) && resource.data.teacherId == request.auth.uid);
+      allow list: if signed() && approvedTeacher(request.auth.uid) && resource.data.teacherId == request.auth.uid;
+      allow create: if own(uid) && person(uid).role == 'student' && validWork(request.resource.data)
+        && request.resource.data.teacherId == person(uid).teacherId && request.resource.data.revision == 1;
+      allow update: if own(uid) && person(uid).role == 'student' && validWork(request.resource.data)
+        && request.resource.data.teacherId == resource.data.teacherId
+        && request.resource.data.teacherId == person(uid).teacherId
+        && request.resource.data.revision == resource.data.revision + 1;
+      allow delete: if false;
+    }
+    function validScore(s) {
+      return s is list && s.size() == 4
+        && s[0] is int && s[0] >= 0 && s[0] <= 5
+        && s[1] is int && s[1] >= 0 && s[1] <= 5
+        && s[2] is int && s[2] >= 0 && s[2] <= 5
+        && s[3] is int && s[3] >= 0 && s[3] <= 5;
+    }
+    match /feedback/{id} {
+      allow get, list: if signed() && (resource.data.studentId == request.auth.uid
+        || (resource.data.teacherId == request.auth.uid && approvedTeacher(request.auth.uid)));
+      allow create: if signed()
+        && request.resource.data.keys().hasAll(['id','studentId','teacherId','authorId','authorName','authorRole','text','rubric','createdAt'])
+        && request.resource.data.keys().hasOnly(['id','studentId','teacherId','authorId','authorName','authorRole','text','rubric','createdAt'])
+        && request.resource.data.id == id && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.authorName == person(request.auth.uid).name
+        && text(request.resource.data.text,6000) && request.resource.data.text.size() > 0
+        && text(request.resource.data.createdAt,40)
+        && request.resource.data.teacherId == person(request.resource.data.studentId).teacherId
+        && ((own(request.resource.data.studentId) && person(request.auth.uid).role == 'student'
+              && request.resource.data.authorRole == 'student' && request.resource.data.rubric == null)
+          || (teaches(request.resource.data.studentId) && request.resource.data.authorRole == 'teacher'
+              && (request.resource.data.rubric == null || validScore(request.resource.data.rubric))));
+      allow update, delete: if false;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
