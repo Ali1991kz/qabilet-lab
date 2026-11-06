@@ -4,10 +4,10 @@ service cloud.firestore {
     function signed() { return request.auth != null; }
     function own(uid) { return signed() && request.auth.uid == uid; }
     function person(uid) { return get(/databases/$(database)/documents/users/$(uid)).data; }
+    // Self-registered teachers manage only their own class.
+    // Existing accounts cannot change role or teacherId.
     function approvedTeacher(uid) {
       return signed() && request.auth.uid == uid
-        && exists(/databases/$(database)/documents/teacherAccess/$(uid))
-        && get(/databases/$(database)/documents/teacherAccess/$(uid)).data.enabled == true
         && person(uid).role == 'teacher';
     }
     function teaches(studentId) {
