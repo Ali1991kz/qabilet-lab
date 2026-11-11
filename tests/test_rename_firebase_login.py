@@ -1,4 +1,6 @@
 import copy
+import io
+from unittest.mock import patch
 import importlib.util
 from pathlib import Path
 import unittest
@@ -37,6 +39,13 @@ class Fake:
             raise RuntimeError('Response lost')
 
 class RenameTest(unittest.TestCase):
+    def test_cloud_shell_credentials_include_quota_project_on_lookup(self):
+        with patch.object(r.urllib.request, 'urlopen', return_value=io.BytesIO(b'{"users":[]}')) as call:
+            r.AdminClient('test-token').lookup(email=[r.OLD])
+        request = call.call_args.args[0]
+        self.assertEqual(request.get_header('X-goog-user-project'), 'qabiletlab')
+        self.assertEqual(request.get_header('Authorization'), 'Bearer test-token')
+
     def test_dry_run_has_no_writes(self):
         f=Fake();r.migrate(f);self.assertEqual(f.writes, [])
     def test_retains_identity_and_profile(self):

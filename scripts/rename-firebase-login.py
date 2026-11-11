@@ -27,6 +27,7 @@ class AdminClient:
         req = urllib.request.Request(url, data=data, headers={
             'Authorization': 'Bearer ' + self.token,
             'Content-Type': 'application/json',
+            'X-Goog-User-Project': PROJECT,
         })
         try:
             with urllib.request.urlopen(req, timeout=30) as response:
