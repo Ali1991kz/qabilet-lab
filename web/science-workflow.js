@@ -1,8 +1,7 @@
 // Additive workflow. Existing labs, accounts, profiles and old research fields remain intact.
 const legacyScience={bind,home,topics,project,review,feedbackPage,portfolio,diagnostic,diagnosticResult,render,progress,messageList,load,persist};
 const SCI_STEPS=[['diagnostic','Тіркелу және диагностика'],['topics','Тақырып таңдау кестесі'],['contest','Конкурс және ережелер'],['project','Ғылыми жобаны жазу'],['home','Менің жұмыс жолым'],['checks','Талаптарды тексеру'],['feedback','Мұғалімнің кері байланысы'],['export','Word-қа жүктеу']];
-NAV_STUDENT.splice(0,NAV_STUDENT.length,...SCI_STEPS.map(([id,label],i)=>[id,String(i+1),label]),['labs','⬡','Виртуалды зертхана'],['experiments','↗','Тәжірибе және күнделік'],['directions','✧','Алты зерттеу бағыты'],['profile','◉','Профиль'],['portfolio','▣','Портфолио']);
-NAV_TEACHER.splice(3,0);
+NAV_STUDENT.splice(0,NAV_STUDENT.length,...SCI_STEPS.map(([id,label],i)=>[id,String(i+1),label]),['labs','⬡','Виртуалды зертхана'],['profile','◉','Профиль']);
 let sciBusy=false;
 function sciField(key,label,value='',type='input',required=false,max=12000){return `<label class="field">${label}<${type} data-sci="${key}" ${type==='input'?'value="'+esc(value)+'"':''} ${required?'required':''} maxlength="${max}">${type==='textarea'?esc(value):''}</${type}></label>`}
 function sciNotice(t){return `<div class="note">${t}</div>`}
