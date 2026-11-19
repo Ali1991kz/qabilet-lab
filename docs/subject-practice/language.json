@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "mode": "lab",
+  "grade": 7,
+  "subject": "Тіл және әдебиет",
+  "topic": "Мәтіндерді салыстыру",
+  "interface_language": "kk",
+  "content_language": "kk",
+  "objective_source": "working",
+  "learning_objectives": [
+    {
+      "id": "working-language",
+      "text": "Бір шартты өзгертіп немесе нақты материалдарды салыстырып, нәтижені кестемен түсіндіру және шектеуін атау."
+    }
+  ],
+  "task_ids": [
+    "language-hypothesis",
+    "language-calculate",
+    "language-interpret",
+    "language-save"
+  ],
+  "scoring": "feedback_only",
+  "model_data": false,
+  "supported_grades": "2–12; төменгі сыныпқа қарапайым бақылау; ресми сынып бағдарламасы емес",
+  "route": "#subject-preview",
+  "implementation": "web/subject-workflow.js",
+  "calculation": "web/subject-models.js"
+}
