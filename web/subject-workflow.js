@@ -1,6 +1,7 @@
 // Subject practice is additive. Existing informatics projects and lab objects stay intact.
-const subjectLegacy={diagnostic,diagnosticResult,topics,labs,home,review,bind,guestRoute,mountLab,sciSuggestions,landing,profile};
+const subjectLegacy={diagnostic,diagnosticResult,topics,labs,home,review,bind,guestRoute,mountLab,sciSuggestions,landing,profile,dashboard,monitor};
 let subjectPreviewChoice='',subjectPreviewGrade='7',subjectQuiz=null,subjectITTrack='model';
+function subjectResetContext(){subjectPreviewChoice='';subjectPreviewGrade='7';subjectQuiz=null;subjectITTrack='model'}
 NAV_TEACHER.push(['subject-labs','◎','Пән зертханасы']);
 function subjectCurrent(w=work){if(!user||user.role==='teacher')return subjectPreviewChoice||profileData.subject||'Информатика';return w.science?.subjectStudy?.subject||profileData.subject||'Информатика'}
 function subjectActiveId(w=work){return subjectAreaId(subjectCurrent(w))}
@@ -73,6 +74,7 @@ landing=function(){subjectLegacy.landing();const root=$('#root');root.innerHTML=
 review=function(){const html=subjectLegacy.review(),student=roster.find(r=>r.id===selectedStudent);return student?html+subjectSavedRunsView(sciReviewWork(student.work||emptyWork(),rosterFeedback.filter(r=>r.student_id===student.id))):html};
 
 function bindSubjectWorkflow(){
+ const ownLab=$('[data-subject-own-lab]');if(ownLab)ownLab.onclick=()=>{subjectResetContext();go('subject-labs')};
  $$('[data-subject-it]').forEach(b=>b.onclick=()=>{subjectITTrack=b.dataset.subjectIt;if(user)render();else subjectGuestPage()});
  if($('#subject-it-preview'))subjectLegacy.mountLab(subjectITTrack,labDefaults[subjectITTrack](),true);
  const context=$('#subject-context-form');if(context)context.onsubmit=async e=>{e.preventDefault();try{const f=new FormData(context),subject=String(f.get('subject')||'').trim();if(!subject||subject.length>80)throw Error('Пән атауын енгіз.');if(!user||user.role==='teacher'){subjectPreviewChoice=subject;subjectPreviewGrade=String(f.get('grade')||'7');if(!Array.from({length:11},(_,i)=>String(i+2)).includes(subjectPreviewGrade))throw Error('Сыныпты таңда.');if(user)render();else subjectGuestPage()}else{const s=science();s.subjectStudy??={subject,records:{}};s.subjectStudy.subject=subject;await persist();subjectQuiz=null;if(!subjectHasDiagnostic())go('diagnostic');else render()}}catch(err){toast(err.message)}};
@@ -93,3 +95,22 @@ function bindSubjectWorkflow(){
 const subjectPreviousBind=bind;
 bind=function(){subjectPreviousBind();bindSubjectWorkflow()};
 profile=function(){let html=subjectLegacy.profile();if(user?.role==='student'&&subjectActiveId()!=='it'){html=html.replace('Бағыт: <b>'+(work.chosen?currentTrack().name:'Диагностикадан кейін таңдалады'),'Пән: <b>'+esc(subjectCurrent()));html=html.replace('data-go="directions">Алты бағытты көру →','data-go="labs">Пән зертханасын ашу');}return html};
+
+// Teacher summaries follow the saved account subject, never the guest/preview choice.
+function subjectPupilSummary(w={}){
+ const subject=w.science?.subjectStudy?.subject||profileData.subject||'Информатика',id=subjectAreaId(subject),rec=w.science?.subjectStudy?.records?.[id]||{};
+ const diagnosed=id==='it'?!!w.diagnostic:!!rec.diagnostic&&rec.diagnostic.grade===w.science?.grade;
+ const theme=SUBJECT_AREAS[id]?.themes[rec.theme]?.name||'',runs=Object.values(w.science?.subjectStudy?.records||{}).reduce((n,r)=>n+(r.runs?.length||0),0),labs=Object.keys(w.labs||{}).length+runs;
+ const label=id==='it'?(TRACKS.find(t=>t.id===w.chosen)?.name||subject):subject+(theme?' · '+theme:'');
+ const evidence=labs+(w.experiments?.length||0)+(w.science?.tables?.length||0)+(w.science?.images?.length||0);
+ return {subject,id,theme,diagnosed,labs,evidence,label};
+}
+dashboard=function(){
+ const subject=profileData.subject||'Информатика',id=subjectAreaId(subject),area=SUBJECT_AREAS[id];if(!area)return subjectLegacy.dashboard();
+ const pupils=roster.map(student=>({student,summary:subjectPupilSummary(student.work||{})})),diagnosed=pupils.filter(p=>p.summary.diagnosed).length,attention=pupils.filter(p=>p.summary.diagnosed&&(!p.student.work?.topic||!p.summary.evidence));
+ return heading(esc(subject)+' пәнінің зерттеу кеңістігі','Диагностика, зерттеу тақырыптары және зертхана профильде сақталған пәнге сәйкес көрсетіледі.','МҰҒАЛІМ ПАНЕЛІ')+`<section class="card"><p><b>Менің пәнім: ${esc(subject)}</b></p><p>Сынып коды: <b>${esc(user.classCode)}</b>. Оқушыларды өз кабинетіңізден қосыңыз.</p><div class="oneline"><button class="btn primary" data-subject-own-lab>${esc(subject)} зертханасын ашу</button><button class="btn" data-go="students">Оқушыларды қосу</button><button class="btn" id="refresh-roster">Деректерді жаңарту</button></div></section><div class="stats"><div class="stat"><div><b>${roster.length}</b><small>Тіркелген оқушы</small></div></div><div class="stat"><div><b>${roster.filter(s=>s.work?.submitted).length}</b><small>Бағалауға жіберілген жоба</small></div></div><div class="stat"><div><b>${diagnosed}</b><small>Өз пәнінің диагностикасын аяқтаған</small></div></div></div><div class="two-col"><section class="card"><h2>${esc(subject)} бойынша зерттеу бағыттары</h2>${area.themes.map((t,i)=>{const n=pupils.filter(p=>p.summary.id===id&&p.summary.diagnosed&&p.student.work?.science?.subjectStudy?.records?.[id]?.theme===i).length;return `<div class="bar-label" style="margin-top:15px"><span>${esc(t.name)}</span><b>${n}</b></div><div class="progress"><span style="width:${roster.length?n/roster.length*100:0}%"></span></div>`}).join('')}<p class="micro">Саны оқушы таңдаған бағытқа сүйенеді. Оқушы басқа пәнді таңдаса, ол мониторингте жеке көрсетіледі.</p></section><section class="card"><h2>Назар қажет жобалар</h2>${attention.map(({student:s})=>`<div class="module"><b>${esc(s.name)}</b><p>${s.work?.topic?'Зерттеу дәлелін қосу қажет':'Тақырып таңдау қажет'}</p><button class="btn" data-student="${esc(s.id)}">Жобаны қарау</button></div>`).join('')||'<p>Әзірге қосымша назар қажет жоба жоқ. Оқушылардың жұмысы мониторингте көрінеді.</p>'}</section></div>`;
+};
+monitor=function(){
+ if(subjectAreaId(profileData.subject||'Информатика')==='it'&&!roster.some(s=>s.work?.science?.subjectStudy))return subjectLegacy.monitor();
+ return heading('Жобалар мониторингі',esc(profileData.subject||'Зерттеу')+' · оқушы таңдаған пән, диагностика және зертхана нәтижелері.','МҰҒАЛІМ ПАНЕЛІ')+`<section class="card"><button class="btn" id="refresh-roster">Деректерді жаңарту</button><div class="scroll"><table><thead><tr><th>Оқушы</th><th>Пән және бағыт</th><th>Тақырып</th><th>Диагностика</th><th>Жоба</th><th>Дәлел</th><th>Күйі</th><th></th></tr></thead><tbody>${roster.map(s=>{const p=subjectPupilSummary(s.work||{});return `<tr><td>${esc(s.name)}</td><td>${esc(p.label)}</td><td>${esc(s.work?.topic?.title||'—')}</td><td>${p.diagnosed?'Аяқталған':'Әлі аяқталмаған'}</td><td>${s.work?progress(s.work):0}%</td><td>${p.labs} зертхана<br>${s.work?.experiments?.length||0} тәжірибе</td><td>${s.work?.submitted?'Бағалауда':'Жоба үстінде'}</td><td><button class="btn" data-student="${esc(s.id)}">Қарау</button></td></tr>`}).join('')}</tbody></table></div>${!roster.length?'<p>Оқушыларды кабинетіңізден қосқаннан кейін осы жерде көрінеді.</p>':''}</section>`;
+};
